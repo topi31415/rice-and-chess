@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Rice and Chess</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+
+        :root {
+            /* Verhindert den automatischen Browser-Zoom bei schnellen Klicks auf iOS */
+            touch-action: manipulation;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1e293b;
+            background-image: url("data:image/svg+xml,%3Csvg width='600' height='600' viewBox='0 0 600 600' xmlns='http://www.w3.org/2000/svg'%3E%3Cg font-family='Arial, sans-serif' fill='rgba(255,255,255,0.04)'%3E%3Ctext x='50' y='150' font-size='120' transform='rotate(15 50 150)'%3E♞%3C/text%3E%3Ctext x='350' y='100' font-size='150' transform='rotate(-20 350 100)'%3E♛%3C/text%3E%3Ctext x='150' y='350' font-size='130' transform='rotate(30 150 350)'%3E♜%3C/text%3E%3Ctext x='450' y='400' font-size='110' transform='rotate(-10 450 400)'%3E♝%3C/text%3E%3Ctext x='100' y='550' font-size='160' transform='rotate(-25 100 550)'%3E♚%3C/text%3E%3Ctext x='300' y='550' font-size='100' transform='rotate(40 300 550)'%3E♟%3C/text%3E%3Ctext x='500' y='250' font-size='110' transform='rotate(15 500 250)'%3E♘%3C/text%3E%3Ctext x='30' y='380' font-size='90' transform='rotate(-35 30 380)'%3E♙%3C/text%3E%3C/g%3E%3C/svg%3E");
+            color: #f8fafc;
+            /* Verhindert Textmarkierung beim schnellen Klicken/Spammen */
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        #chessboard {
+            /* Deaktiviert Standard-Gesten auf dem Brett für maximale Klick-Reaktion */
+            touch-action: none;
+        }
+
+        .chess-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.05s, filter 0.2s;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
+            text-align: center;
+            padding: 2px;
+            position: relative;
+            z-index: 10;
+            overflow: hidden;
+        }
+
+        .cell-value {
+            position: relative;
+            z-index: 80;
+            font-weight: 400;
+            font-size: clamp(0.5rem, 3vw, 1.1rem);
+            word-break: break-all;
+            line-height: 1;
+            pointer-events: none;
+        }
+
+        .cell-black .cell-value, .cell-black-zero .cell-value {
+            text-shadow: -0.5px -0.5px 0 #000, 0.5px -0.5px 0 #000, -0.5px 0.5px 0 #000, 0.5px 0.5px 0 #000;
+        }
+
+        .chess-cell:active {
+            transform: scale(0.95);
+        }
+
+        .cell-white { background-color: #FFFFFF; color: #111111; }
+        .cell-black { background-color: #111111; color: #FFFFFF; }
+        .cell-white-zero { background-color: #67DB7E; color: #000000; }
+        .cell-black-zero { background-color: #27A843; color: #FFFFFF; }
+
+        .rice-particle {
+            position: absolute;
+            width: 6px;
+            height: 10px;
+            background-color: #Fdf6e3;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 100;
+            will-change: transform;
+            animation: popInRice 0.4s ease-out forwards;
+        }
+
+        @keyframes popInRice {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5) rotate(var(--rot)); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2) rotate(var(--rot)); }
+            100% { opacity: 0.8; transform: translate(-50%, -50%) scale(1) rotate(var(--rot)); }
+        }
+
+        .toggle-checkbox:checked { right: 0; border-color: #3b82f6; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #3b82f6; }
+    </style>
+</head>
+<body class="min-h-screen p-4 flex flex-col items-center relative overflow-x-hidden">
+
+    <!-- Sprachwahl -->
+    <div class="absolute top-4 right-4 flex gap-2 z-[300]">
+        <button onclick="setLanguage('de')" class="flex items-center gap-2 text-xs font-bold bg-slate-800/90 text-white rounded-lg px-3 py-2 border border-slate-600" id="btn-lang-de">🇩🇪 DE</button>
+        <button onclick="setLanguage('en')" class="opacity-50 flex items-center gap-2 text-xs font-bold bg-slate-800/90 text-white rounded-lg px-3 py-2 border border-slate-600" id="btn-lang-en">🇬🇧 EN</button>
+    </div>
+
+    <header class="w-full max-w-4xl flex flex-col items-center mb-6 mt-12">
+        <h1 class="text-3xl md:text-5xl font-extrabold mb-4 text-center bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-500">
+            Rice and Chess
+        </h1>
+
+        <div class="bg-slate-800/80 border border-slate-700 backdrop-blur-md rounded-2xl shadow-xl w-full text-slate-200 text-sm overflow-hidden">
+            <div class="p-4 cursor-pointer flex justify-between items-center" onclick="toggleLegend()">
+                <h2 class="text-lg font-bold text-white flex items-center gap-3">
+                    <span id="legend-title-text">Die Legende des Schachbretts</span>
+                </h2>
+                <svg id="legend-chevron" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="transition-transform duration-300" style="transform: rotate(-90deg);"><path d="m6 9 6 6 6-6"/></svg>
+            </div>
+            <div id="legend-content" class="px-4 pb-4" style="display: none;">
+                <p id="legend-p1" class="mb-2"></p>
+                <p id="legend-p2" class="mb-2"></p>
+                <p id="legend-p3"></p>
+            </div>
+        </div>
+    </header>
+
+    <main class="w-full max-w-md flex flex-col items-center relative z-[150]">
+        <div class="w-full flex flex-row justify-between items-center gap-2 mb-4 bg-slate-800/80 p-3 rounded-xl border border-slate-700 shadow-lg">
+            <div class="flex items-center gap-2">
+                <div class="relative inline-block w-12 h-6 align-middle">
+                    <input type="checkbox" name="toggle" id="anim-toggle" class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-2 appearance-none cursor-pointer top-1 left-1 checked:right-1 checked:left-auto" checked/>
+                    <label for="anim-toggle" class="block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer"></label>
+                </div>
+                <label id="label-anim-toggle" class="text-xs font-semibold text-slate-200">Reiskorn-Animation</label>
+            </div>
+
+            <button onclick="showResetModal()" class="px-3 py-1.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg font-bold text-xs">
+                <span id="btn-reset-text">Fortschritt zurücksetzen</span>
+            </button>
+        </div>
+
+        <div id="placed-grains-counter" class="mb-4 bg-slate-900/80 border border-amber-500/30 px-5 py-2 rounded-xl shadow-xl flex items-center gap-3 text-amber-400">
+            <span class="text-xl">🍚</span>
+            <div class="flex flex-col">
+                <span id="counter-label" class="text-[8px] uppercase font-bold text-slate-400">Platzierte Körner:</span>
+                <span id="total-placed-value" class="text-xl font-black tabular-nums">0</span>
+            </div>
+        </div>
+
+        <div class="w-full aspect-square bg-slate-900 border-[4px] border-slate-800 rounded-lg shadow-2xl overflow-hidden p-0.5">
+            <div id="chessboard" class="w-full h-full grid grid-cols-8 grid-rows-8"></div>
+        </div>
+
+        <p id="text-instruction" class="mt-4 text-slate-400 font-medium text-xs text-center"></p>
+    </main>
+
+    <!-- Reset Modal -->
+    <div id="reset-modal" class="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-slate-800 border border-slate-600 rounded-2xl p-6 max-w-xs w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300" id="reset-modal-content">
+            <h3 id="modal-title" class="text-xl font-bold text-white mb-2"></h3>
+            <p id="modal-desc" class="text-slate-300 mb-6 text-xs leading-relaxed"></p>
+            <div class="flex justify-end gap-3">
+                <button id="btn-cancel" onclick="hideResetModal()" class="px-4 py-2 rounded-lg font-bold bg-slate-700 text-white text-sm">Abbrechen</button>
+                <button id="btn-confirm" onclick="confirmReset()" class="px-4 py-2 rounded-lg font-bold bg-red-600 text-white text-sm">Ja, zurücksetzen</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let boardState = [];
+        let totalPlaced = 0n;
+        const totalCells = 64;
+        const storageKey = 'riceAndChessState';
+        const storagePlacedKey = 'riceAndChessPlaced';
+        const langKey = 'riceAndChessLang';
+        const chessboardEl = document.getElementById('chessboard');
+        const totalPlacedEl = document.getElementById('total-placed-value');
+        let isAnimationEnabled = document.getElementById('anim-toggle').checked;
+        let currentLang = localStorage.getItem(langKey) || 'de';
+
+        // EXAKT die Texte aus der hochgeladenen TXT-Datei
+        const i18n = {
+            de: {
+                legendTitle: "Die Legende des Schachbretts",
+                legendP1: "Die Legende besagt, dass ein weiser Gelehrter für seinen König ein neues Spiel auf einem 8x8-Schachbrett erfand. Der König war von dem strategischen Tiefgang so fasziniert, dass er dem Erfinder eine beliebige Belohnung versprach.",
+                legendP2: "Der Gelehrte äußerte einen scheinbar bescheidenen Wunsch: Er bat lediglich um Reiskörner. Ein Korn auf dem ersten Feld, zwei auf dem zweiten, vier auf dem dritten – und auf jedem weiteren Feld stets die doppelte Menge des vorherigen.",
+                legendP3: "Der König lachte zunächst über diese Forderung. Doch bald musste er feststellen, dass selbst die gesamten Vorräte seines Königreichs nicht ausreichen würden, um das Brett zu füllen. Am Ende ergab sich eine unvorstellbare Summe von über 18 Trillionen Reiskörnern.",
+                animToggle: "Reiskorn-Animation",
+                resetBtn: "Fortschritt zurücksetzen",
+                instruction: "Klicke auf die Felder, um die Körner einzeln zu platzieren!",
+                modalTitle: "Spiel zurücksetzen?",
+                modalDesc: "Bist du sicher, dass du alle platzierten Reiskörner entfernen und das Spiel neu starten möchtest? Dein Fortschritt geht verloren.",
+                modalCancel: "Abbrechen",
+                modalConfirm: "Ja, zurücksetzen",
+                grainsSuffix: "Körner",
+                counterLabel: "Platzierte Körner:"
+            },
+            en: {
+                legendTitle: "The Legend of the Chessboard",
+                legendP1: "Legend has it that a wise scholar invented a new game for his king on an 8x8 chessboard. The king was so fascinated by the strategic depth that he promised the inventor any reward.",
+                legendP2: "The scholar made a seemingly modest request: He simply asked for grains of rice. One grain on the first square, two on the second, four on the third - and on each subsequent square always double the amount of the previous one.",
+                legendP3: "The king initially laughed at this demand. But soon he had to realize that even the entire supplies of his kingdom would not be enough to fill the board. In the end, it resulted in an unimaginable sum of over 18 quintillion grains of rice.",
+                animToggle: "rice-grain animation",
+                resetBtn: "Reset Progress",
+                instruction: "Click on the squares to place the grains individually!",
+                modalTitle: "Reset Game?",
+                modalDesc: "Are you sure you want to remove all placed rice grains and restart the game? Your progress will be lost.",
+                modalCancel: "Cancel",
+                modalConfirm: "Yes, reset",
+                grainsSuffix: "grains",
+                counterLabel: "Grains placed:"
+            }
+        };
+
+        document.getElementById('anim-toggle').addEventListener('change', (e) => {
+            isAnimationEnabled = e.target.checked;
+        });
+
+        function initState() {
+            const savedState = localStorage.getItem(storageKey);
+            const savedPlaced = localStorage.getItem(storagePlacedKey);
+            
+            if (savedState) {
+                try {
+                    boardState = savedState.split(',').map(n => BigInt(n));
+                } catch (e) { generateInitialState(); }
+            } else { generateInitialState(); }
+
+            totalPlaced = savedPlaced ? BigInt(savedPlaced) : 0n;
+            
+            applyLanguage(currentLang);
+            updateTotalPlacedDisplay();
+            renderBoard();
+        }
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem(langKey, lang);
+            applyLanguage(lang);
+            for (let i = 0; i < totalCells; i++) updateCellDOM(i);
+        }
+
+        function applyLanguage(lang) {
+            const t = i18n[lang];
+            document.getElementById('legend-title-text').innerText = t.legendTitle;
+            document.getElementById('legend-p1').innerText = t.legendP1;
+            document.getElementById('legend-p2').innerText = t.legendP2;
+            document.getElementById('legend-p3').innerText = t.legendP3;
+            document.getElementById('label-anim-toggle').innerText = t.animToggle;
+            document.getElementById('btn-reset-text').innerText = t.resetBtn;
+            document.getElementById('text-instruction').innerText = t.instruction;
+            document.getElementById('modal-title').innerText = t.modalTitle;
+            document.getElementById('modal-desc').innerText = t.modalDesc;
+            document.getElementById('btn-cancel').innerText = t.modalCancel;
+            document.getElementById('btn-confirm').innerText = t.modalConfirm;
+            document.getElementById('counter-label').innerText = t.counterLabel;
+
+            document.getElementById('btn-lang-de').classList.toggle('opacity-50', lang !== 'de');
+            document.getElementById('btn-lang-en').classList.toggle('opacity-50', lang !== 'en');
+        }
+
+        function toggleLegend() {
+            const content = document.getElementById('legend-content');
+            const chevron = document.getElementById('legend-chevron');
+            const isOpen = content.style.display === 'block';
+            content.style.display = isOpen ? 'none' : 'block';
+            chevron.style.transform = isOpen ? 'rotate(-90deg)' : 'rotate(0deg)';
+        }
+
+        function generateInitialState() {
+            boardState = [];
+            totalPlaced = 0n;
+            let currentGrains = 1n;
+            for (let i = 0; i < totalCells; i++) {
+                boardState.push(currentGrains);
+                currentGrains *= 2n;
+            }
+            saveState();
+            updateTotalPlacedDisplay();
+        }
+
+        function saveState() {
+            localStorage.setItem(storageKey, boardState.join(','));
+            localStorage.setItem(storagePlacedKey, totalPlaced.toString());
+        }
+
+        function formatNumber(numBigInt, index) {
+            if (numBigInt === 0n) return "0";
+            if (index <= 20) return numBigInt.toString();
+            const num = Number(numBigInt);
+            if (num >= 1e18) return (num / 1e18).toFixed(1) + 'E';
+            if (num >= 1e15) return (num / 1e15).toFixed(1) + 'P';
+            if (num >= 1e12) return (num / 1e12).toFixed(1) + 'T';
+            if (num >= 1e9) return (num / 1e9).toFixed(1) + 'G';
+            if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
+            if (num >= 1e3) return (num / 1e3).toFixed(1) + 'k';
+            return num.toString();
+        }
+
+        function formatLargeNumber(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        }
+
+        function updateTotalPlacedDisplay() {
+            totalPlacedEl.innerText = formatLargeNumber(totalPlaced);
+        }
+
+        function getCellClasses(index, value) {
+            const row = Math.floor(index / 8);
+            const col = index % 8;
+            const isWhite = (row + col) % 2 === 0;
+            if (value === 0n) return `chess-cell ${isWhite ? 'cell-white-zero' : 'cell-black-zero'}`;
+            return `chess-cell ${isWhite ? 'cell-white' : 'cell-black'}`;
+        }
+
+        function renderBoard() {
+            chessboardEl.innerHTML = '';
+            const fragment = document.createDocumentFragment();
+            for (let i = 0; i < totalCells; i++) {
+                const cell = document.createElement('div');
+                cell.id = `cell-${i}`;
+                cell.className = getCellClasses(i, boardState[i]);
+                
+                const span = document.createElement('span');
+                span.className = 'cell-value';
+                span.innerText = formatNumber(boardState[i], i);
+                cell.appendChild(span);
+
+                // Touchstart für sofortige Reaktion ohne Zoom-Delay
+                cell.addEventListener('touchstart', (e) => {
+                    handleCellClick(i, e.touches[0]);
+                }, { passive: true });
+
+                fragment.appendChild(cell);
+            }
+            chessboardEl.appendChild(fragment);
+        }
+
+        function handleCellClick(index, touch) {
+            if (boardState[index] > 0n) {
+                boardState[index] -= 1n;
+                totalPlaced += 1n;
+                updateCellDOM(index);
+                updateTotalPlacedDisplay();
+                saveState();
+                if (isAnimationEnabled) spawnRiceInCell(index, touch);
+                
+                if (window.navigator && window.navigator.vibrate) {
+                    window.navigator.vibrate(2);
+                }
+            }
+        }
+
+        function spawnRiceInCell(index, touch) {
+            const cell = document.getElementById(`cell-${index}`);
+            if (!cell) return;
+            const rect = cell.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+            const particle = document.createElement('div');
+            particle.className = 'rice-particle';
+            particle.style.setProperty('--rot', `${Math.random() * 360}deg`);
+            particle.style.left = `${x}px`;
+            particle.style.top = `${y}px`;
+            cell.appendChild(particle);
+            setTimeout(() => particle.remove(), 400);
+        }
+
+        function updateCellDOM(index) {
+            const cell = document.getElementById(`cell-${index}`);
+            if (cell) {
+                const val = boardState[index];
+                const span = cell.querySelector('.cell-value');
+                if(span) span.innerText = formatNumber(val, index);
+                cell.className = getCellClasses(index, val);
+                cell.title = val.toString() + " " + i18n[currentLang].grainsSuffix;
+            }
+        }
+
+        const modal = document.getElementById('reset-modal');
+        const modalContent = document.getElementById('reset-modal-content');
+
+        function showResetModal() {
+            modal.classList.remove('pointer-events-none');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modalContent.classList.replace('scale-95', 'scale-100');
+            }, 10);
+        }
+
+        function hideResetModal() {
+            modal.classList.add('opacity-0');
+            modalContent.classList.replace('scale-100', 'scale-95');
+            setTimeout(() => modal.classList.add('pointer-events-none'), 300);
+        }
+
+        function confirmReset() {
+            hideResetModal();
+            generateInitialState();
+            renderBoard();
+        }
+
+        window.onload = initState;
+    </script>
+</body>
+</html>
