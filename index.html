@@ -8,25 +8,23 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
 
-        :root {
-            /* Verhindert den automatischen Browser-Zoom bei schnellen Klicks auf iOS */
-            touch-action: manipulation;
-        }
-
         body {
             font-family: 'Inter', sans-serif;
             background-color: #1e293b;
             background-image: url("data:image/svg+xml,%3Csvg width='600' height='600' viewBox='0 0 600 600' xmlns='http://www.w3.org/2000/svg'%3E%3Cg font-family='Arial, sans-serif' fill='rgba(255,255,255,0.04)'%3E%3Ctext x='50' y='150' font-size='120' transform='rotate(15 50 150)'%3E♞%3C/text%3E%3Ctext x='350' y='100' font-size='150' transform='rotate(-20 350 100)'%3E♛%3C/text%3E%3Ctext x='150' y='350' font-size='130' transform='rotate(30 150 350)'%3E♜%3C/text%3E%3Ctext x='450' y='400' font-size='110' transform='rotate(-10 450 400)'%3E♝%3C/text%3E%3Ctext x='100' y='550' font-size='160' transform='rotate(-25 100 550)'%3E♚%3C/text%3E%3Ctext x='300' y='550' font-size='100' transform='rotate(40 300 550)'%3E♟%3C/text%3E%3Ctext x='500' y='250' font-size='110' transform='rotate(15 500 250)'%3E♘%3C/text%3E%3Ctext x='30' y='380' font-size='90' transform='rotate(-35 30 380)'%3E♙%3C/text%3E%3C/g%3E%3C/svg%3E");
             color: #f8fafc;
-            /* Verhindert Textmarkierung beim schnellen Klicken/Spammen */
-            user-select: none;
+            
+            /* Mobile Optimierungen: Keine Textauswahl, kein Zoom beim Tippen, keine grauen iOS-Tap-Highlights */
             -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
         }
 
-        #chessboard {
-            /* Deaktiviert Standard-Gesten auf dem Brett für maximale Klick-Reaktion */
-            touch-action: none;
+        /* Erlaube Textauswahl im Legenden-Inhalt, falls man es lesen/kopieren will */
+        #legend-content {
+            -webkit-user-select: text;
+            user-select: text;
         }
 
         .chess-cell {
@@ -34,31 +32,45 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: transform 0.05s, filter 0.2s;
+            transition: transform 0.1s, filter 0.2s;
             box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
             text-align: center;
             padding: 2px;
             position: relative;
             z-index: 10;
             overflow: hidden;
+            
+            /* Mobile Optimierungen für die Zellen */
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none; /* Verhindert das iOS Kontextmenü bei Long-Press */
+            touch-action: manipulation; /* Blockiert Double-Tap-Zoom sicher */
         }
 
         .cell-value {
             position: relative;
             z-index: 80;
             font-weight: 400;
-            font-size: clamp(0.5rem, 3vw, 1.1rem);
-            word-break: break-all;
-            line-height: 1;
+            font-size: clamp(0.6rem, 2vw, 1.25rem);
+            word-break: break-word;
+            line-height: 1.1;
             pointer-events: none;
         }
 
         .cell-black .cell-value, .cell-black-zero .cell-value {
-            text-shadow: -0.5px -0.5px 0 #000, 0.5px -0.5px 0 #000, -0.5px 0.5px 0 #000, 0.5px 0.5px 0 #000;
+            text-shadow: 
+                -0.5px -0.5px 0 #000,  
+                 0.5px -0.5px 0 #000,
+                -0.5px  0.5px 0 #000,
+                 0.5px  0.5px 0 #000;
         }
 
         .chess-cell:active {
-            transform: scale(0.95);
+            transform: scale(0.92);
+        }
+
+        .chess-cell:hover {
+            filter: brightness(1.1);
         }
 
         .cell-white { background-color: #FFFFFF; color: #111111; }
@@ -71,89 +83,126 @@
             width: 6px;
             height: 10px;
             background-color: #Fdf6e3;
-            border-radius: 50%;
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            box-shadow: inset -1px -1px 2px rgba(0,0,0,0.2), 1px 1px 1px rgba(0,0,0,0.3);
             pointer-events: none;
             z-index: 100;
-            will-change: transform;
-            animation: popInRice 0.4s ease-out forwards;
+            animation: popInRice 0.4s ease-out forwards, pushToBack 0.1s forwards 3s;
+            transform-origin: center center;
         }
 
         @keyframes popInRice {
             0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5) rotate(var(--rot)); }
-            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2) rotate(var(--rot)); }
-            100% { opacity: 0.8; transform: translate(-50%, -50%) scale(1) rotate(var(--rot)); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.3) rotate(var(--rot)); }
+            100% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(var(--rot)); }
         }
 
-        .toggle-checkbox:checked { right: 0; border-color: #3b82f6; }
-        .toggle-checkbox:checked + .toggle-label { background-color: #3b82f6; }
+        @keyframes pushToBack {
+            to { z-index: 20; opacity: 0.8; }
+        }
+
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #3b82f6;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #3b82f6;
+        }
+        .toggle-checkbox {
+            right: 0;
+            z-index: 1;
+            border-color: #e5e7eb;
+            transition: all 0.3s;
+        }
+        .toggle-label {
+            width: 3.5rem;
+            height: 2rem;
+            background-color: #4b5563;
+            transition: all 0.3s;
+        }
+
+        button, label {
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none;
+        }
     </style>
 </head>
-<body class="min-h-screen p-4 flex flex-col items-center relative overflow-x-hidden">
+<body class="min-h-screen p-4 md:p-8 flex flex-col items-center relative overflow-x-hidden">
 
-    <!-- Sprachwahl -->
     <div class="absolute top-4 right-4 flex gap-2 z-[300]">
-        <button onclick="setLanguage('de')" class="flex items-center gap-2 text-xs font-bold bg-slate-800/90 text-white rounded-lg px-3 py-2 border border-slate-600" id="btn-lang-de">🇩🇪 DE</button>
-        <button onclick="setLanguage('en')" class="opacity-50 flex items-center gap-2 text-xs font-bold bg-slate-800/90 text-white rounded-lg px-3 py-2 border border-slate-600" id="btn-lang-en">🇬🇧 EN</button>
+        <button onclick="setLanguage('de')" class="transition-all flex items-center gap-2 text-xs sm:text-sm font-bold bg-slate-800/90 text-white rounded-lg px-3 py-2 border border-slate-600 shadow-lg hover:bg-slate-700" id="btn-lang-de">
+            <span class="text-lg leading-none">🇩🇪</span> DE
+        </button>
+        <button onclick="setLanguage('en')" class="opacity-50 hover:opacity-100 transition-all flex items-center gap-2 text-xs sm:text-sm font-bold bg-slate-800/90 text-white rounded-lg px-3 py-2 border border-slate-600 shadow-lg hover:bg-slate-700" id="btn-lang-en">
+            <span class="text-lg leading-none">🇬🇧</span> EN
+        </button>
     </div>
 
-    <header class="w-full max-w-4xl flex flex-col items-center mb-6 mt-12">
-        <h1 class="text-3xl md:text-5xl font-extrabold mb-4 text-center bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-500">
+    <header class="w-full max-w-4xl flex flex-col items-center mb-8 mt-12 md:mt-6">
+        <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight mb-6 text-center bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-300 to-gray-500 drop-shadow-sm">
             Rice and Chess
         </h1>
 
-        <div class="bg-slate-800/80 border border-slate-700 backdrop-blur-md rounded-2xl shadow-xl w-full text-slate-200 text-sm overflow-hidden">
-            <div class="p-4 cursor-pointer flex justify-between items-center" onclick="toggleLegend()">
-                <h2 class="text-lg font-bold text-white flex items-center gap-3">
+        <div class="bg-slate-800/80 border border-slate-700 backdrop-blur-md rounded-2xl shadow-2xl w-full text-slate-200 leading-relaxed text-sm md:text-base overflow-hidden">
+            <div class="p-4 md:p-6 cursor-pointer flex justify-between items-center hover:bg-slate-700/50 transition-colors" onclick="toggleLegend()">
+                <h2 class="text-xl font-bold text-white flex items-center gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-400"><path d="M4 22h14a2 2 0 0 0 2-2V7.5L14.5 2H6a2 2 0 0 0-2 2v4"/><polyline points="14 2 14 8 20 8"/><path d="M10.42 12.61a2.1 2.1 0 1 1 2.97 2.97L7.95 21 4 22l.99-3.95 5.43-5.44Z"/></svg>
                     <span id="legend-title-text">Die Legende des Schachbretts</span>
                 </h2>
-                <svg id="legend-chevron" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="transition-transform duration-300" style="transform: rotate(-90deg);"><path d="m6 9 6 6 6-6"/></svg>
+                <svg id="legend-chevron" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400 transition-transform duration-300" style="transform: rotate(-90deg);"><path d="m6 9 6 6 6-6"/></svg>
             </div>
-            <div id="legend-content" class="px-4 pb-4" style="display: none;">
-                <p id="legend-p1" class="mb-2"></p>
-                <p id="legend-p2" class="mb-2"></p>
+            
+            <div id="legend-content" class="px-4 md:px-6 pb-4 md:pb-6 transition-all duration-300" style="display: none;">
+                <p id="legend-p1" class="mb-3"></p>
+                <p id="legend-p2" class="mb-3"></p>
                 <p id="legend-p3"></p>
             </div>
         </div>
     </header>
 
-    <main class="w-full max-w-md flex flex-col items-center relative z-[150]">
-        <div class="w-full flex flex-row justify-between items-center gap-2 mb-4 bg-slate-800/80 p-3 rounded-xl border border-slate-700 shadow-lg">
-            <div class="flex items-center gap-2">
-                <div class="relative inline-block w-12 h-6 align-middle">
-                    <input type="checkbox" name="toggle" id="anim-toggle" class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-2 appearance-none cursor-pointer top-1 left-1 checked:right-1 checked:left-auto" checked/>
-                    <label for="anim-toggle" class="block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer"></label>
+    <main class="w-full max-w-2xl flex flex-col items-center relative z-[150]">
+        <!-- Menü-Board -->
+        <div class="w-full flex flex-col sm:flex-row justify-between items-center gap-4 mb-6 bg-slate-800/80 backdrop-blur-md p-4 rounded-xl border border-slate-700/80 shadow-lg">
+            <div class="flex items-center gap-3">
+                <div class="relative inline-block w-14 h-8 align-middle select-none transition duration-200 ease-in">
+                    <input type="checkbox" name="toggle" id="anim-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer top-1" style="transform: translateX(2px);" checked/>
+                    <label for="anim-toggle" class="toggle-label block overflow-hidden h-8 rounded-full cursor-pointer"></label>
                 </div>
-                <label id="label-anim-toggle" class="text-xs font-semibold text-slate-200">Reiskorn-Animation</label>
+                <label for="anim-toggle" id="label-anim-toggle" class="text-sm font-semibold text-slate-200 cursor-pointer select-none">
+                    Reiskorn-Animation
+                </label>
             </div>
 
-            <button onclick="showResetModal()" class="px-3 py-1.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg font-bold text-xs">
-                <span id="btn-reset-text">Fortschritt zurücksetzen</span>
+            <button onclick="showResetModal()" class="px-5 py-2.5 bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 hover:text-red-300 rounded-lg font-bold transition-all active:scale-95 flex items-center gap-2 text-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                <span id="btn-reset-text">Feld zurücksetzen</span>
             </button>
         </div>
 
-        <div id="placed-grains-counter" class="mb-4 bg-slate-900/80 border border-amber-500/30 px-5 py-2 rounded-xl shadow-xl flex items-center gap-3 text-amber-400">
-            <span class="text-xl">🍚</span>
+        <!-- Globaler Counter -->
+        <div id="placed-grains-counter" class="mb-6 bg-slate-900/80 border border-amber-500/30 px-6 py-3 rounded-2xl shadow-xl flex items-center gap-4 text-amber-400">
+            <span class="text-2xl">🍚</span>
             <div class="flex flex-col">
-                <span id="counter-label" class="text-[8px] uppercase font-bold text-slate-400">Platzierte Körner:</span>
-                <span id="total-placed-value" class="text-xl font-black tabular-nums">0</span>
+                <span id="counter-label" class="text-[10px] uppercase tracking-widest font-bold text-slate-400">Platzierte Reiskörner:</span>
+                <span id="total-placed-value" class="text-2xl font-black tabular-nums tracking-tighter">0</span>
             </div>
         </div>
 
-        <div class="w-full aspect-square bg-slate-900 border-[4px] border-slate-800 rounded-lg shadow-2xl overflow-hidden p-0.5">
-            <div id="chessboard" class="w-full h-full grid grid-cols-8 grid-rows-8"></div>
+        <div class="w-full aspect-square max-w-[800px] bg-slate-900 border-[6px] border-slate-800 rounded-xl shadow-2xl overflow-hidden p-0.5 relative">
+            <div id="chessboard" class="w-full h-full grid grid-cols-8 grid-rows-8 rounded-lg overflow-hidden"></div>
         </div>
 
-        <p id="text-instruction" class="mt-4 text-slate-400 font-medium text-xs text-center"></p>
+        <p id="text-instruction" class="mt-6 text-slate-400 font-medium text-sm text-center bg-slate-900/50 px-4 py-2 rounded-full border border-slate-700"></p>
     </main>
 
-    <!-- Reset Modal -->
     <div id="reset-modal" class="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300">
-        <div class="bg-slate-800 border border-slate-600 rounded-2xl p-6 max-w-xs w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300" id="reset-modal-content">
-            <h3 id="modal-title" class="text-xl font-bold text-white mb-2"></h3>
-            <p id="modal-desc" class="text-slate-300 mb-6 text-xs leading-relaxed"></p>
+        <div class="bg-slate-800 border border-slate-600 rounded-2xl p-6 md:p-8 max-w-sm w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300" id="reset-modal-content">
+            <h3 id="modal-title" class="text-2xl font-bold text-white mb-3"></h3>
+            <p id="modal-desc" class="text-slate-300 mb-6 text-sm leading-relaxed"></p>
             <div class="flex justify-end gap-3">
-                <button id="btn-cancel" onclick="hideResetModal()" class="px-4 py-2 rounded-lg font-bold bg-slate-700 text-white text-sm">Abbrechen</button>
-                <button id="btn-confirm" onclick="confirmReset()" class="px-4 py-2 rounded-lg font-bold bg-red-600 text-white text-sm">Ja, zurücksetzen</button>
+                <button id="btn-cancel" onclick="hideResetModal()" class="px-5 py-2.5 rounded-lg font-bold bg-slate-700 hover:bg-slate-600 text-white transition-colors">Abbrechen</button>
+                <button id="btn-confirm" onclick="confirmReset()" class="px-5 py-2.5 rounded-lg font-bold bg-red-600 hover:bg-red-500 text-white transition-colors shadow-lg shadow-red-500/20">Ja, zurücksetzen</button>
             </div>
         </div>
     </div>
@@ -168,9 +217,8 @@
         const chessboardEl = document.getElementById('chessboard');
         const totalPlacedEl = document.getElementById('total-placed-value');
         let isAnimationEnabled = document.getElementById('anim-toggle').checked;
-        let currentLang = localStorage.getItem(langKey) || 'de';
+        let currentLang = localStorage.getItem(langKey) || 'en';
 
-        // EXAKT die Texte aus der hochgeladenen TXT-Datei
         const i18n = {
             de: {
                 legendTitle: "Die Legende des Schachbretts",
@@ -178,29 +226,29 @@
                 legendP2: "Der Gelehrte äußerte einen scheinbar bescheidenen Wunsch: Er bat lediglich um Reiskörner. Ein Korn auf dem ersten Feld, zwei auf dem zweiten, vier auf dem dritten – und auf jedem weiteren Feld stets die doppelte Menge des vorherigen.",
                 legendP3: "Der König lachte zunächst über diese Forderung. Doch bald musste er feststellen, dass selbst die gesamten Vorräte seines Königreichs nicht ausreichen würden, um das Brett zu füllen. Am Ende ergab sich eine unvorstellbare Summe von über 18 Trillionen Reiskörnern.",
                 animToggle: "Reiskorn-Animation",
-                resetBtn: "Fortschritt zurücksetzen",
-                instruction: "Klicke auf die Felder, um die Körner einzeln zu platzieren!",
-                modalTitle: "Spiel zurücksetzen?",
-                modalDesc: "Bist du sicher, dass du alle platzierten Reiskörner entfernen und das Spiel neu starten möchtest? Dein Fortschritt geht verloren.",
+                resetBtn: "Feld zurücksetzen",
+                instruction: "Klicke auf die Felder, um Reiskörner abzubauen. (Auch Rechtsklick möglich)",
+                modalTitle: "Alles zurücksetzen?",
+                modalDesc: "Bist du sicher? Alle Felder werden auf ihren gigantischen Ursprungswert zurückgesetzt und dein Fortschritt geht verloren.",
                 modalCancel: "Abbrechen",
                 modalConfirm: "Ja, zurücksetzen",
-                grainsSuffix: "Körner",
-                counterLabel: "Platzierte Körner:"
+                grainsSuffix: "Reiskörner",
+                counterLabel: "Platzierte Reiskörner:"
             },
             en: {
                 legendTitle: "The Legend of the Chessboard",
                 legendP1: "Legend has it that a wise scholar invented a new game for his king on an 8x8 chessboard. The king was so fascinated by the strategic depth that he promised the inventor any reward.",
                 legendP2: "The scholar made a seemingly modest request: He simply asked for grains of rice. One grain on the first square, two on the second, four on the third - and on each subsequent square always double the amount of the previous one.",
                 legendP3: "The king initially laughed at this demand. But soon he had to realize that even the entire supplies of his kingdom would not be enough to fill the board. In the end, it resulted in an unimaginable sum of over 18 quintillion grains of rice.",
-                animToggle: "rice-grain animation",
-                resetBtn: "Reset Progress",
-                instruction: "Click on the squares to place the grains individually!",
-                modalTitle: "Reset Game?",
-                modalDesc: "Are you sure you want to remove all placed rice grains and restart the game? Your progress will be lost.",
+                animToggle: "Rice Grain Animation",
+                resetBtn: "Reset Board",
+                instruction: "Click on the squares to harvest rice grains. (Right-click works too)",
+                modalTitle: "Reset everything?",
+                modalDesc: "Are you sure? All squares will be reset to their gigantic original value and your progress will be lost.",
                 modalCancel: "Cancel",
                 modalConfirm: "Yes, reset",
-                grainsSuffix: "grains",
-                counterLabel: "Grains placed:"
+                grainsSuffix: "grains of rice",
+                counterLabel: "Rice grains placed:"
             }
         };
 
@@ -215,10 +263,23 @@
             if (savedState) {
                 try {
                     boardState = savedState.split(',').map(n => BigInt(n));
-                } catch (e) { generateInitialState(); }
-            } else { generateInitialState(); }
+                    if(boardState.length !== totalCells) throw new Error("Invalid state length");
+                } catch (e) {
+                    generateInitialState();
+                }
+            } else {
+                generateInitialState();
+            }
 
-            totalPlaced = savedPlaced ? BigInt(savedPlaced) : 0n;
+            if (savedPlaced) {
+                try {
+                    totalPlaced = BigInt(savedPlaced);
+                } catch (e) {
+                    totalPlaced = 0n;
+                }
+            } else {
+                totalPlaced = 0n;
+            }
             
             applyLanguage(currentLang);
             updateTotalPlacedDisplay();
@@ -247,8 +308,10 @@
             document.getElementById('btn-confirm').innerText = t.modalConfirm;
             document.getElementById('counter-label').innerText = t.counterLabel;
 
-            document.getElementById('btn-lang-de').classList.toggle('opacity-50', lang !== 'de');
-            document.getElementById('btn-lang-en').classList.toggle('opacity-50', lang !== 'en');
+            const btnDe = document.getElementById('btn-lang-de');
+            const btnEn = document.getElementById('btn-lang-en');
+            if(lang === 'de') { btnDe.classList.remove('opacity-50'); btnEn.classList.add('opacity-50'); }
+            else { btnEn.classList.remove('opacity-50'); btnDe.classList.add('opacity-50'); }
         }
 
         function toggleLegend() {
@@ -277,13 +340,13 @@
         }
 
         function formatNumber(numBigInt, index) {
-            if (numBigInt === 0n) return "0";
-            if (index <= 20) return numBigInt.toString();
+            if (index <= 30) return numBigInt.toString();
+            if (numBigInt < 1000n) return numBigInt.toString();
             const num = Number(numBigInt);
             if (num >= 1e18) return (num / 1e18).toFixed(1) + 'E';
             if (num >= 1e15) return (num / 1e15).toFixed(1) + 'P';
             if (num >= 1e12) return (num / 1e12).toFixed(1) + 'T';
-            if (num >= 1e9) return (num / 1e9).toFixed(1) + 'G';
+            if (num >= 1e9) return (num / 1e9).toFixed(1) + 'B';
             if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
             if (num >= 1e3) return (num / 1e3).toFixed(1) + 'k';
             return num.toString();
@@ -307,55 +370,56 @@
 
         function renderBoard() {
             chessboardEl.innerHTML = '';
-            const fragment = document.createDocumentFragment();
             for (let i = 0; i < totalCells; i++) {
                 const cell = document.createElement('div');
                 cell.id = `cell-${i}`;
                 cell.className = getCellClasses(i, boardState[i]);
+                cell.title = boardState[i].toString() + " " + i18n[currentLang].grainsSuffix;
                 
                 const span = document.createElement('span');
                 span.className = 'cell-value';
                 span.innerText = formatNumber(boardState[i], i);
                 cell.appendChild(span);
 
-                // Touchstart für sofortige Reaktion ohne Zoom-Delay
-                cell.addEventListener('touchstart', (e) => {
-                    handleCellClick(i, e.touches[0]);
-                }, { passive: true });
+                cell.addEventListener('pointerdown', (e) => {
+                    if (e.button === 0 || e.button === 2) {
+                        handleCellClick(i, e);
+                    }
+                });
 
-                fragment.appendChild(cell);
+                cell.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                });
+
+                chessboardEl.appendChild(cell);
             }
-            chessboardEl.appendChild(fragment);
         }
 
-        function handleCellClick(index, touch) {
+        function handleCellClick(index, event) {
             if (boardState[index] > 0n) {
                 boardState[index] -= 1n;
                 totalPlaced += 1n;
                 updateCellDOM(index);
                 updateTotalPlacedDisplay();
                 saveState();
-                if (isAnimationEnabled) spawnRiceInCell(index, touch);
-                
-                if (window.navigator && window.navigator.vibrate) {
-                    window.navigator.vibrate(2);
-                }
+                if (isAnimationEnabled) spawnRiceInCell(index, event);
+                if (navigator.vibrate) navigator.vibrate(10);
             }
         }
 
-        function spawnRiceInCell(index, touch) {
+        function spawnRiceInCell(index, event) {
             const cell = document.getElementById(`cell-${index}`);
             if (!cell) return;
             const rect = cell.getBoundingClientRect();
-            const x = touch.clientX - rect.left;
-            const y = touch.clientY - rect.top;
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
             const particle = document.createElement('div');
             particle.className = 'rice-particle';
-            particle.style.setProperty('--rot', `${Math.random() * 360}deg`);
+            const randomRotation = Math.floor(Math.random() * 360);
+            particle.style.setProperty('--rot', `${randomRotation}deg`);
             particle.style.left = `${x}px`;
             particle.style.top = `${y}px`;
             cell.appendChild(particle);
-            setTimeout(() => particle.remove(), 400);
         }
 
         function updateCellDOM(index) {
@@ -392,7 +456,7 @@
             renderBoard();
         }
 
-        window.onload = initState;
+        initState();
     </script>
 </body>
 </html>
